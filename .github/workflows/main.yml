@@ -44,7 +44,7 @@ jobs:
         foreach ($project in $projects)
         {
           $project = "Draco.$project"
-          [Console]::WriteLine("Building and packaging $project")
+          [Console]::WriteLine("Building and packaging $project with version $version")
         }
 
     - name: Package VS Code extension
