@@ -1,0 +1,58 @@
+name: 'Publish packages'
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy-sdk:
+        type: boolean
+        description: Deploy components of the SDK (Compiler, Toolset, Sdk, ProjectTemplates)
+      deploy-langserver:
+        type: boolean
+        description: Deploy the language server (Compiler, LanguageServer)
+      deploy-vscext:
+        type: boolean
+        description: Deploy the VS Code extension
+      version:
+        type: string
+        description: The version number to deploy with
+        required: true
+      prerelease:
+        type: boolean
+        description: The deployed version is pre-release
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  VERSION: ${{ github.event.inputs.version }}
+  PRERELEASE: ${{ github.event.inputs.prerelease == 'true' }}
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+    steps:
+    - name: Package .NET portion
+      run: |
+        $sdkProjects = "Compiler", "Compiler.Toolset", "Sdk", "ProjectTemplates"
+        $langserverProjects = "Compiler", "LanguageServer"
+        $projects = @()
+
+        if (${{ github.event.inputs.deploy-sdk == 'true' }}) { $projects += $sdkProjects; }
+        if (${{ github.event.inputs.deploy-langserver == 'true' }}) { $projects += $langserverProjects; }
+
+        $version = "${{ env.VERSION }}"
+        if (${{ env.PRERELEASE == 'true' }}) { $version += "-pre"; }
+
+        foreach ($project in $projects)
+        {
+          $project = "Draco.$project"
+          [Console]::WriteLine("Building and packaging $project")
+        }
+
+    - name: Package VS Code extension
+      run: |
+        if (${{ github.event.inputs.deploy-vscext == 'true' }})
+        {
+          npm install
+          npm version "${{ env.VERSION }}"
+          if (${{ env.PRERELEASE }}) { [Console]::WriteLine("NPM set to preview") }
+          [Console]::WriteLine("call VSCE package")
+        }
