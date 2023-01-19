@@ -21,38 +21,58 @@ on:
         description: The deployed version is pre-release
 
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CONFIGURATION: 'Release'  # The configuration to use
   VERSION: ${{ github.event.inputs.version }}
-  PRERELEASE: ${{ github.event.inputs.prerelease == 'true' }}
+  PRERELEASE: ${{ github.event.inputs.prerelease }}
 
 jobs:
   deploy:
     runs-on: windows-latest
     steps:
+      # Set up environment
+    - name: Clone the repo
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v3.5.1
+      with:
+        node-version: 18
+
+    - name: Install VSCE
+      run: npm install -g @vscode/vsce
+
+      # Build and packaging
+    - name: Recurse into src
+      run: cd src
+
     - name: Package .NET portion
       run: |
         $sdkProjects = "Compiler", "Compiler.Toolset", "Sdk", "ProjectTemplates"
         $langserverProjects = "Compiler", "LanguageServer"
         $projects = @()
 
-        if (${{ github.event.inputs.deploy-sdk == 'true' }}) { $projects += $sdkProjects; }
-        if (${{ github.event.inputs.deploy-langserver == 'true' }}) { $projects += $langserverProjects; }
+        if ($${{ github.event.inputs.deploy-sdk }}) { $projects += $sdkProjects; }
+        if ($${{ github.event.inputs.deploy-langserver }}) { $projects += $langserverProjects; }
 
         $version = "${{ env.VERSION }}"
-        if (${{ env.PRERELEASE == 'true' }}) { $version += "-pre"; }
+        if ($${{ env.PRERELEASE }}) { $version += "-pre"; }
 
         foreach ($project in $projects)
         {
           $project = "Draco.$project"
-          [Console]::WriteLine("Building and packaging $project with version $version")
+          [Console]::WriteLine("dotnet package $project with version $version")
         }
 
     - name: Package VS Code extension
       run: |
-        if (${{ github.event.inputs.deploy-vscext == 'true' }})
+        if ($${{ github.event.inputs.deploy-vscext }})
         {
-          npm install
-          npm version "${{ env.VERSION }}"
-          if (${{ env.PRERELEASE }}) { [Console]::WriteLine("NPM set to preview") }
-          [Console]::WriteLine("call VSCE package")
+          [Console]::WriteLine("npm version $${ env.VERSION }")
+          if ($${{ env.PRERELEASE }}) { [Console]::WriteLine("npm prerelease") }
+          [Console]::WriteLine("vsce package")
         }
